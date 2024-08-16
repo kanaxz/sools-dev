@@ -1,11 +1,14 @@
 {
-  "name": "sools-dev",
-  "version": "1.0.0",
-  "main": "push.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC",
-  "description": ""
+ "name": "sools-dev",
+ "version": "1.1.0",
+ "main": "push.js",
+ "scripts": {
+  "test": "echo \"Error: no test specified\" && exit 1"
+ },
+ "author": "",
+ "license": "ISC",
+ "description": "",
+ "dependencies": {
+  "axios": "^1.7.4"
+ }
 }

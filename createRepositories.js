@@ -1,21 +1,32 @@
-const { execSync } = require('node:child_process')
-const { readdir, writeFile } = require('fs/promises')
 const { existsSync } = require('fs')
 const { join } = require('node:path')
 const { getPackagesInfos, execMany } = require('./utils')
+const axios = require('axios')
 
-const incrementVersion = (version) => {
-  const [major, minor, patch] = version.split('.')
-  return `${major}.${parseInt(minor) + 1}.${patch}`
+const createGithubRepo = async (repoName, token) => {
+  await axios.post(
+    'https://api.github.com/user/repos',
+    {
+      name: repoName,
+      private: false,
+      description: '',
+    },
+    {
+      headers: {
+        Authorization: `token ${token}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  )
 }
 
-
-const processPackageInfos = async (packageInfos, packagesInfos) => {
+const processPackageInfos = async (packageInfos, token) => {
   const { package, path } = packageInfos
-  if (!existsSync(join(path, '.git'))) {
+  if (existsSync(join(path, '.git'))) {
     return
   }
-  console.log(path, existsSync(join(path, '.git')))
+
+  await createGithubRepo(package.name, token)
   execMany(path, [
     'git init',
     'git add .',
@@ -23,17 +34,15 @@ const processPackageInfos = async (packageInfos, packagesInfos) => {
     `git remote add origin https://github.com/kanaxz/${package.name}`,
     'git push -u origin master'
   ])
-
-  process.exit()
 }
 
 
 const execute = async () => {
-  const [, , path] = process.argv
+  const [, , path, token] = process.argv
   const root = join(process.cwd(), path)
   const packagesInfos = await getPackagesInfos(root)
   for (const packageInfos of packagesInfos) {
-    await processPackageInfos(packageInfos, packagesInfos)
+    await processPackageInfos(packageInfos, token)
   }
 }
 

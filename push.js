@@ -15,34 +15,46 @@ const execMany = (folder, commands) => {
   }
 }
 
+const processDependencies = async (package, packagesInfos) => {
+  if (!package.dependencies) { return false }
+
+  let hasChanged = false
+  for (const dependencyName of Object.keys(package.dependencies)) {
+    const dependency = packagesInfos.find(({ package: p }) => p.name === dependencyName)
+    if (!dependency) { continue }
+
+    if (await processPackageInfos(dependency, packagesInfos)) {
+      hasChanged = true
+      package.dependencies[dependencyName] = dependency.version
+    }
+  }
+
+  return hasChanged
+}
+
 const processPackageInfos = async (packageInfos, packagesInfos) => {
 
   const { package, path, processed } = packageInfos
   if (processed) { return }
 
-  if (package.dependencies) {
-    for (const dependencyName of Object.keys(package.dependencies)) {
-      const dependency = packagesInfos.find(({ package }) => package.name === dependencyName)
-      if (!dependency) { continue }
+  console.log(package.name)
+  const dependencyChanged = await processDependencies(package, packagesInfos)
 
-      await processPackageInfos(dependency, packagesInfos)
-    }
-  }
   const result = execSync(`cd ${path} && git status .`, {
     encoding: 'utf-8',
   })
   console.log(result)
-  process.exit()
   const match = result.match('Untracked files:')
-  if (match) {
+  if (dependencyChanged || match) {
     package.version = incrementVersion(package.version)
     await writeFile(join(path, 'package.json'), JSON.stringify(package, null, ' '))
     execMany(path, [
       'npm i',
+      'git add .',
+      `git commit -m "${package.version}"`,
       'npm publish'
     ])
   }
-  process.exit()
   packageInfos.processed = true
 }
 
@@ -51,6 +63,7 @@ const execute = async () => {
   const [, , path] = process.argv
   const root = join(process.cwd(), path)
   const packagesInfos = await getPackagesInfos(root)
+  console.log(packagesInfos.map((p) => p.package.name))
   for (const packageInfos of packagesInfos) {
     await processPackageInfos(packageInfos, packagesInfos)
   }
