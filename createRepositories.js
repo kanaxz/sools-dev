@@ -24,6 +24,7 @@ const processPackageInfos = async (packageInfos, packagesInfos) => {
     'git push -u origin master'
   ])
 
+  process.exit()
 }
 
 
