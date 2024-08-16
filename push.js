@@ -1,22 +1,17 @@
 const { execSync } = require('node:child_process')
-const { readdir } = require('fs/promises')
+const { readdir, writeFile } = require('fs/promises')
 const { existsSync } = require('fs')
 const { join } = require('node:path')
+const { getPackagesInfos } = require('./utils')
 
-const getPackagesInfos = async (path) => {
-  const packagePath = join(path, 'package.json')
-  if (existsSync(packagePath)) {
-    const package = require(packagePath)
-    return [{ package, path }]
-  } else {
-    const packages = []
-    const items = await readdir(path, { withFileTypes: true })
-    for (const item of items) {
-      if (item.isFile()) { continue }
-      const folderPackages = await getPackagesInfos(join(path, item.name))
-      packages.push(...folderPackages)
-    }
-    return packages
+const incrementVersion = (version) => {
+  const [major, minor, patch] = version.split('.')
+  return `${major}.${parseInt(minor) + 1}.${patch}`
+}
+
+const execMany = (folder, commands) => {
+  for (const command of commands) {
+    execSync(`cd ${folder} && ${command}`)
   }
 }
 
@@ -33,8 +28,21 @@ const processPackageInfos = async (packageInfos, packagesInfos) => {
       await processPackageInfos(dependency, packagesInfos)
     }
   }
-  console.log(path)
-  const result = await execSync(`cd ${path} && git status`)
+  const result = execSync(`cd ${path} && git status .`, {
+    encoding: 'utf-8',
+  })
+  console.log(result)
+  process.exit()
+  const match = result.match('Untracked files:')
+  if (match) {
+    package.version = incrementVersion(package.version)
+    await writeFile(join(path, 'package.json'), JSON.stringify(package, null, ' '))
+    execMany(path, [
+      'npm i',
+      'npm publish'
+    ])
+  }
+  process.exit()
   packageInfos.processed = true
 }
 
