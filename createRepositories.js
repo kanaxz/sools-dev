@@ -15,7 +15,7 @@ const processPackageInfos = async (packageInfos, packagesInfos) => {
   if (!existsSync(join(path, '.git'))) {
     return
   }
-  console.log(path)
+  console.log(path, existsSync(join(path, '.git')))
   execMany(path, [
     'git init',
     'git add .',
