@@ -1,11 +1,18 @@
 const { execSync } = require('node:child_process')
+const { readdir, writeFile } = require('fs/promises')
+const { existsSync } = require('fs')
 const { join } = require('node:path')
-const { getPackagesInfos, execMany } = require('./utils')
-const { writeFile } = require('node:fs/promises')
+const { getPackagesInfos } = require('./utils')
 
 const incrementVersion = (version) => {
   const [major, minor, patch] = version.split('.')
   return `${major}.${parseInt(minor) + 1}.${patch}`
+}
+
+const execMany = (folder, commands) => {
+  for (const command of commands) {
+    execSync(`cd ${folder} && ${command}`)
+  }
 }
 
 const processDependencies = async (package, packagesInfos) => {
@@ -27,18 +34,16 @@ const processDependencies = async (package, packagesInfos) => {
 
 const processPackageInfos = async (packageInfos, packagesInfos) => {
 
-  const { package, path, processed, processing } = packageInfos
+  const { package, path, processed } = packageInfos
   if (processed) { return }
-  if (processing) {
-    throw new Error(`Package ${package.name} already being processed`)
-  }
 
-  packageInfos.processing = true
+  console.log(package.name)
   const dependencyChanged = await processDependencies(package, packagesInfos)
 
   const result = execSync(`cd ${path} && git status .`, {
     encoding: 'utf-8',
   })
+  console.log(result)
   const match = result.match('Untracked files:')
   if (dependencyChanged || match) {
     package.version = incrementVersion(package.version)
@@ -47,15 +52,10 @@ const processPackageInfos = async (packageInfos, packagesInfos) => {
       'npm i',
       'git add .',
       `git commit -m "${package.version}"`,
-      'git push',
       'npm publish'
     ])
   }
-
-  Object.assign(packageInfos, {
-    processed: true,
-    processing: false,
-  })
+  packageInfos.processed = true
 }
 
 
